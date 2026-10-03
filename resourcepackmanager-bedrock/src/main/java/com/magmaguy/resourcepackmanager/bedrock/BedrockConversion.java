@@ -502,9 +502,29 @@ public class BedrockConversion {
                                            MappedItemRegistry registry,
                                            BedrockConverterContext ctx) {
         try {
+            String filterMode = ctx.bedrockNamespaceFilterMode() == null
+                    ? "OFF" : ctx.bedrockNamespaceFilterMode().trim().toUpperCase(java.util.Locale.ROOT);
+            java.util.Set<String> configuredNamespaces = ctx.bedrockNamespaceFilter().stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(value -> value.trim().toLowerCase(java.util.Locale.ROOT))
+                    .filter(value -> !value.isEmpty())
+                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+            java.util.function.Predicate<String> namespaceFilter = namespace -> {
+                String normalized = namespace.toLowerCase(java.util.Locale.ROOT);
+                return switch (filterMode) {
+                    case "ALLOWLIST" -> configuredNamespaces.contains(normalized);
+                    case "DENYLIST" -> !configuredNamespaces.contains(normalized);
+                    default -> true;
+                };
+            };
+            if (!"OFF".equals(filterMode)) {
+                BedrockLog.debug("[BedrockConverter] Namespace filter " + filterMode + ": "
+                        + String.join(", ", configuredNamespaces));
+            }
             List<ItemsDefinition> generic = GenericJavaScanner.scan(
                     mergedJavaPack,
-                    ctx::isCancellationRequested);
+                    ctx::isCancellationRequested,
+                    namespaceFilter);
             if (ctx.isCancellationRequested()) return;
             if (generic.isEmpty()) return;
 
@@ -525,6 +545,16 @@ public class BedrockConversion {
 
                 for (ResolvedLeaf leaf : leaves) {
                     if (ctx.isCancellationRequested()) return;
+                    int modelColon = leaf.modelRef().indexOf(':');
+                    String modelNamespace = modelColon > 0
+                            ? leaf.modelRef().substring(0, modelColon) : "minecraft";
+                    // A minecraft items definition can point at another plugin's model namespace.
+                    // Apply the filter to the resolved model source too, otherwise allowing minecraft
+                    // would still pull modelengine:* (and other excluded content) into Bedrock output.
+                    if (!namespaceFilter.test(modelNamespace)) {
+                        BedrockLog.debug("[BedrockConverter] Namespace filter skipped model: " + leaf.modelRef());
+                        continue;
+                    }
                     Optional<ResolvedModel> modelOpt = assetResolver.resolveModel(leaf.modelRef());
                     // Unresolved models are silently skipped — aggregate count is
                     // visible in the final "Bedrock conversion complete: X mappings"

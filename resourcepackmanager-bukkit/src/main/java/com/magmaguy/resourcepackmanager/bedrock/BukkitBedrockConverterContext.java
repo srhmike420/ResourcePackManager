@@ -8,6 +8,7 @@ import com.magmaguy.resourcepackmanager.network.NetworkMode;
 import org.bukkit.Bukkit;
 
 import java.io.File;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -83,6 +84,16 @@ public final class BukkitBedrockConverterContext implements BedrockConverterCont
     @Override
     public boolean isBedrockConverterDebug() {
         return DefaultConfig.isBedrockConverterDebug();
+    }
+
+    @Override
+    public String bedrockNamespaceFilterMode() {
+        return DefaultConfig.getBedrockNamespaceFilterMode();
+    }
+
+    @Override
+    public List<String> bedrockNamespaceFilter() {
+        return DefaultConfig.getBedrockNamespaceFilter();
     }
 
     @Override

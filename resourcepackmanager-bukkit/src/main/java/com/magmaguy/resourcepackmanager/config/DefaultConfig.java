@@ -33,6 +33,10 @@ public class DefaultConfig extends ConfigurationFile {
     @Getter
     private static boolean bedrockConverterDebug = false;
     @Getter
+    private static String bedrockNamespaceFilterMode = "OFF";
+    @Getter
+    private static List<String> bedrockNamespaceFilter = List.of();
+    @Getter
     private static volatile boolean verboseLogging = false;
     @Getter
     private static boolean selfHostEnabled = true;
@@ -143,6 +147,23 @@ public class DefaultConfig extends ConfigurationFile {
         bedrockGeyserFolder = ConfigurationEngine.setString(
                 List.of("Path to the Geyser packs folder. Leave empty to auto-detect."),
                 fileConfiguration, "bedrockGeyserFolder", "");
+
+        bedrockNamespaceFilterMode = ConfigurationEngine.setString(
+                List.of(
+                        "Controls which Java namespaces the generic Bedrock item converter scans.",
+                        "OFF = scan every namespace (upstream/default behavior).",
+                        "ALLOWLIST = scan only namespaces listed in bedrockNamespaceFilter.",
+                        "DENYLIST = scan every namespace except those listed in bedrockNamespaceFilter.",
+                        "This affects Bedrock conversion only; the merged Java resource pack is unchanged."),
+                fileConfiguration, "bedrockNamespaceFilterMode", "OFF");
+
+        bedrockNamespaceFilter = ConfigurationEngine.setList(
+                List.of(
+                        "Namespace names used by bedrockNamespaceFilterMode.",
+                        "For FlameBourne's ALLOWLIST keep minecraft so legacy vanilla-base custom-model-data",
+                        "overrides can still be discovered, plus the content namespaces RSPM should convert."),
+                fileConfiguration, "bedrockNamespaceFilter",
+                List.of("minecraft", "elitemobs", "freeminecraftmodels", "elitecreatures", "nightbreak"));
 
         bedrockConverterDebug = ConfigurationEngine.setBoolean(
                 List.of(

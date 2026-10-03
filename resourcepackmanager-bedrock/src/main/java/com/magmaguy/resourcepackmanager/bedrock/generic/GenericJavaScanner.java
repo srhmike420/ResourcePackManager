@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 
 /**
  * Scans a merged Java resource pack directory for 1.21.4+ items definition files
@@ -54,12 +55,23 @@ public final class GenericJavaScanner {
      * definition file (1.21.4+ format).
      */
     public static List<ItemsDefinition> scan(File mergedJavaPack) throws IOException {
-        return scan(mergedJavaPack, () -> false);
+        return scan(mergedJavaPack, () -> false, namespace -> true);
     }
 
     public static List<ItemsDefinition> scan(File mergedJavaPack,
                                              BooleanSupplier cancellationRequested) throws IOException {
+        return scan(mergedJavaPack, cancellationRequested, namespace -> true);
+    }
+
+    /**
+     * Scans item definitions while allowing the caller to include/exclude whole Java namespaces.
+     * The filter affects Bedrock discovery only; it never mutates the merged Java resource pack.
+     */
+    public static List<ItemsDefinition> scan(File mergedJavaPack,
+                                             BooleanSupplier cancellationRequested,
+                                             Predicate<String> namespaceFilter) throws IOException {
         List<ItemsDefinition> result = new ArrayList<>();
+        Predicate<String> effectiveFilter = namespaceFilter == null ? namespace -> true : namespaceFilter;
         File assetsDir = new File(mergedJavaPack, "assets");
         if (!assetsDir.isDirectory()) return result;
 
@@ -68,9 +80,15 @@ public final class GenericJavaScanner {
         Arrays.sort(namespaceDirs, Comparator.comparing(File::getName));
 
         int javaOnlySkipped = 0;
+        int namespaceSkipped = 0;
         for (File nsDir : namespaceDirs) {
             if (isCancelled(cancellationRequested)) return result;
             String namespace = nsDir.getName();
+            if (!effectiveFilter.test(namespace)) {
+                namespaceSkipped++;
+                BedrockLog.debug("[BedrockConverter] Namespace filter skipped: " + namespace);
+                continue;
+            }
             File itemsDir = new File(nsDir, "items");
             if (!itemsDir.isDirectory()) continue;
             javaOnlySkipped += scanItemsDir(namespace, itemsDir, "", javaOnlyDeclarations(nsDir),
@@ -79,7 +97,9 @@ public final class GenericJavaScanner {
 
         if (isCancelled(cancellationRequested)) return result;
         int modernCount = result.size();
-        scanLegacyCustomModelOverrides(assetsDir, result, cancellationRequested);
+        if (effectiveFilter.test("minecraft")) {
+            scanLegacyCustomModelOverrides(assetsDir, result, cancellationRequested);
+        }
         if (isCancelled(cancellationRequested)) return result;
         int legacyCount = result.size() - modernCount;
 
@@ -89,7 +109,8 @@ public final class GenericJavaScanner {
         BedrockLog.debug("[BedrockConverter] Generic scanner: discovered " + result.size()
                 + " item definitions (" + modernCount + " modern, "
                 + legacyCount + " legacy overrides) across "
-                + namespaceDirs.length + " namespace(s); left out " + javaOnlySkipped
+                + namespaceDirs.length + " namespace(s); skipped " + namespaceSkipped
+                + " namespace(s) by filter and left out " + javaOnlySkipped
                 + " Java-only path(s).");
 
         // Surface unsupported pack layouts on the console (not just debug). Legacy

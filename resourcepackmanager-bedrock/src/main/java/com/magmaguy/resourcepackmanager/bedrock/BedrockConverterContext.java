@@ -4,6 +4,7 @@ import com.magmaguy.resourcepackmanager.mixer.engine.MixerLogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Platform-neutral context passed into {@link BedrockConversion}. Implementations
@@ -143,6 +144,16 @@ public interface BedrockConverterContext {
      */
     default boolean isBedrockConverterDebug() {
         return false;
+    }
+
+    /** Namespace filter mode for generic Java -> Bedrock item discovery: OFF, ALLOWLIST, or DENYLIST. */
+    default String bedrockNamespaceFilterMode() {
+        return "OFF";
+    }
+
+    /** Namespace names used by the configured allow/deny list. */
+    default List<String> bedrockNamespaceFilter() {
+        return List.of();
     }
 
     /**
