@@ -35,7 +35,7 @@ jobs:
         working-directory: .deps/MagmaCore
         run: |
           chmod +x gradlew
-          ./gradlew publishToMavenLocal --no-daemon
+          ./gradlew :core:publishToMavenLocal --no-daemon
 
       - name: Build ResourcePackManager
         run: mvn -B -U -DskipTests package
